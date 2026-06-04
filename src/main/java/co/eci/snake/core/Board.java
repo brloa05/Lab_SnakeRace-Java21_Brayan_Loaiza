@@ -2,6 +2,7 @@ package co.eci.snake.core;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -16,7 +17,7 @@ public final class Board {
   private final Set<Position> turbo = new HashSet<>();
   private final Map<Position, Position> teleports = new HashMap<>();
 
-  public enum MoveResult { MOVED, ATE_MOUSE, HIT_OBSTACLE, ATE_TURBO, TELEPORTED }
+  public enum MoveResult { MOVED, ATE_MOUSE, HIT_OBSTACLE, ATE_TURBO, TELEPORTED, HIT_SNAKE }
 
   public Board(int width, int height) {
     if (width <= 0 || height <= 0) throw new IllegalArgumentException("Board dimensions must be positive");
@@ -36,7 +37,7 @@ public final class Board {
   public synchronized Set<Position> turbo() { return new HashSet<>(turbo); }
   public synchronized Map<Position, Position> teleports() { return new HashMap<>(teleports); }
 
-  public synchronized MoveResult step(Snake snake) {
+  public synchronized MoveResult step(Snake snake, List<Snake> allSnakes) {
     Objects.requireNonNull(snake, "snake");
     var head = snake.head();
     var dir = snake.direction();
@@ -48,6 +49,13 @@ public final class Board {
     if (teleports.containsKey(next)) {
       next = teleports.get(next);
       teleported = true;
+    }
+
+    // Die on collision with any alive snake body (own or other)
+    for (Snake other : allSnakes) {
+      if (other.isAlive() && other.containsPosition(next)) {
+        return MoveResult.HIT_SNAKE;
+      }
     }
 
     boolean ateMouse = mice.remove(next);

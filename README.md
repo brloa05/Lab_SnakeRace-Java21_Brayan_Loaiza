@@ -1,39 +1,39 @@
 # Snake Race — ARSW Lab #2 (Java 21, Virtual Threads)
 
 **Escuela Colombiana de Ingeniería – Arquitecturas de Software**  
-Laboratorio de programación concurrente: condiciones de carrera, sincronización y colecciones seguras.
+Concurrent programming lab: race conditions, synchronization, and thread-safe collections.
 
 ---
 
-## Requisitos
+## Requirements
 
-- **JDK 21** (Temurin recomendado)
+- **JDK 21** (Temurin recommended)
 - **Maven 3.9+**
-- SO: Windows, macOS o Linux
+- OS: Windows, macOS or Linux
 
 ---
 
-## Cómo ejecutar
+## How to Run
 
 ```bash
 mvn clean verify
 mvn -q -DskipTests exec:java -Dsnakes=4
 ```
 
-- `-Dsnakes=N` → inicia el juego con **N** serpientes (por defecto 2).
-- **Controles**: Flechas → serpiente 0 · WASD → serpiente 1 · Espacio / botón → Pausar/Reanudar.
+- `-Dsnakes=N` → launches the game with **N** snakes (default 2).
+- **Controls**: Arrow keys → snake 0 · WASD → snake 1 · Space / button → Pause/Resume.
 
 ---
 
-## Reglas del juego (resumen)
+## Game Rules (summary)
 
-- **N serpientes** corren de forma autónoma (cada una en su propio hilo).
-- **Ratones**: al comer uno, la serpiente **crece** y aparece un **nuevo obstáculo**.
-- **Obstáculos**: si la cabeza entra en un obstáculo hay **rebote**.
-- **Colisiones**: si la cabeza choca con el cuerpo de otra serpiente o con su **propio cuerpo**, la serpiente **muere** y desaparece del tablero.
-- **Teletransportadores** (flechas rojas): entrar por uno te **saca por su par**.
-- **Rayos (Turbo)**: al pisarlos, la serpiente obtiene **velocidad aumentada** temporal.
-- Movimiento con **wrap-around** (el tablero "se repite" en los bordes).
+- **N snakes** run autonomously, each in its own thread.
+- **Mice**: eating one makes the snake **grow** and spawns a **new obstacle**.
+- **Obstacles**: hitting one causes a **bounce** (random turn).
+- **Collisions**: if a snake's head hits another snake's body or its **own body**, it **dies** and disappears from the board.
+- **Teleporters** (red arrows): entering one exits through its pair.
+- **Turbo (lightning)**: stepping on one grants temporary **speed boost**.
+- Movement with **wrap-around** (the board wraps at the edges).
 
 ---
 

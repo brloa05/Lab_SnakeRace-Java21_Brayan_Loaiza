@@ -15,6 +15,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
+/**
+ * Main application window for the Snake Race game.
+ *
+ * <p>Responsibilities:
+ * <ul>
+ *   <li>Creates the {@link Board} and all {@link Snake} instances.</li>
+ *   <li>Submits one {@link SnakeRunner} virtual thread per snake.</li>
+ *   <li>Manages the Start / Pause / Resume lifecycle via {@link PauseControl}
+ *       and {@link co.eci.snake.core.engine.GameClock}.</li>
+ *   <li>Displays pause statistics (longest alive snake, first to die).</li>
+ * </ul>
+ */
 public final class SnakeApp extends JFrame {
 
     private final Board board;
@@ -169,6 +181,11 @@ public final class SnakeApp extends JFrame {
     // Game panel
     // -------------------------------------------------------------------------
 
+    /**
+     * Custom panel that renders the board state every repaint cycle.
+     * Reads board collections via defensive-copy getters and snake bodies
+     * via {@link Snake#snapshot()} — both are safe to call from the EDT.
+     */
     public static final class GamePanel extends JPanel {
 
         private static final Color[] PALETTE = {

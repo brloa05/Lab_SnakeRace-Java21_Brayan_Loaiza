@@ -3,12 +3,20 @@ package co.eci.snake.core;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
+/**
+ * Represents a single snake: its body positions, movement direction, and
+ * alive/death state.
+ *
+ * <p>All methods that access {@code body} are {@code synchronized} on {@code this}
+ * to prevent data races between the runner thread (writer) and the Swing EDT
+ * (reader). {@code direction}, {@code alive}, and {@code deathNanos} use
+ * {@code volatile} for cheap lock-free reads in hot paths.
+ */
 public final class Snake {
 
     private final Deque<Position> body = new ArrayDeque<>();
     private volatile Direction direction;
     private int maxLength = 5;
-
 
     private volatile boolean alive = true;
     private volatile long deathNanos = -1;
@@ -18,16 +26,25 @@ public final class Snake {
         this.direction = dir;
     }
 
+    /**
+     * Factory method — creates a snake at the given position facing {@code dir}.
+     *
+     * @param x   column on the board.
+     * @param y   row on the board.
+     * @param dir initial direction.
+     */
     public static Snake of(int x, int y, Direction dir) {
         return new Snake(new Position(x, y), dir);
     }
 
+    /** @return the current movement direction (volatile read). */
     public Direction direction() { return direction; }
 
     /**
-     * Sincronizado: el EDT (teclas) y el runner (giros aleatorios) llaman a este
-     * método desde hilos distintos; sin sync el par read+write sobre direction no
-     * es atómico y puede producir una inversión de 180°.
+     * Attempts to change direction, ignoring 180° reversals.
+     * Synchronized because both the runner thread and the EDT call this method.
+     *
+     * @param dir requested new direction.
      */
     public synchronized void turn(Direction dir) {
         if ((direction == Direction.UP    && dir == Direction.DOWN)  ||
@@ -40,25 +57,28 @@ public final class Snake {
     }
 
     /**
-     * Solo se llama desde Board.step() (ya protegido por synchronized(board)).
-     * Sincronizamos también aquí para mantener el orden de locks board -> snake
-     * y evitar que snapshot() del hilo EDT vea el deque a medias.
+     * @return the current head position.
+     * Only called from {@code Board.step()} (which already holds the board lock),
+     * but synchronized here to prevent a concurrent read by the EDT via
+     * {@link #snapshot()}.
      */
     public synchronized Position head() { return body.peekFirst(); }
 
     /**
-     * Devuelve una copia defensiva del cuerpo.
-     * Sincronizado sobre this para no entrar en conflicto con advance().
+     * Returns a consistent defensive copy of the body for rendering.
+     * The EDT iterates the copy without holding the lock.
      */
     public synchronized Deque<Position> snapshot() { return new ArrayDeque<>(body); }
 
-    /** Longitud actual; usada para estadísticas al pausar. */
+    /** @return current body length (used for pause statistics). */
     public synchronized int length() { return body.size(); }
 
     /**
-     * Avanza la cabeza a newHead y, opcionalmente, crece.
-     * Sincronizado sobre this: la misma región que snapshot(), por eso nunca
-     * habrá una vista parcial del deque desde el hilo de pintura.
+     * Advances the snake by adding {@code newHead} and trimming the tail if not growing.
+     * Called exclusively from {@code Board.step()}.
+     *
+     * @param newHead position of the new head.
+     * @param grow    {@code true} if the snake ate a mouse and should grow.
      */
     public synchronized void advance(Position newHead, boolean grow) {
         body.addFirst(newHead);
@@ -66,26 +86,38 @@ public final class Snake {
         while (body.size() > maxLength) body.removeLast();
     }
 
-    /** Lectura volatile: sin costo de lock para el hot-path del runner. */
+    /**
+     * @return {@code true} if this snake is still alive (volatile read, no lock).
+     */
     public boolean isAlive() { return alive; }
 
     /**
-     * Marca la serpiente como muerta. Double-checked locking sobre volatile
-     * para escribir alive y deathNanos de forma atómica y solo una vez.
+     * Marks the snake as dead and records the death timestamp.
+     * Uses double-checked locking: the outer volatile read avoids lock
+     * acquisition in the common case; the inner block writes both fields atomically.
      */
     public void die() {
         if (!alive) return;
         synchronized (this) {
             if (!alive) return;
-            alive = false;
+            alive      = false;
             deathNanos = System.nanoTime();
         }
     }
 
-    /** Instante de muerte (nanoTime), o -1 si aún vive. */
+    /**
+     * @return the {@link System#nanoTime()} timestamp of death,
+     *         or {@code -1} if the snake is still alive.
+     */
     public long deathNanos() { return deathNanos; }
 
-    /** Returns true if the given position is currently inside this snake's body. */
+    /**
+     * Checks whether the given position is currently occupied by any cell of
+     * this snake's body. Used inside {@code Board.step()} for collision detection.
+     *
+     * @param p position to check.
+     * @return {@code true} if {@code p} is in the body.
+     */
     public synchronized boolean containsPosition(Position p) {
         return body.contains(p);
     }
